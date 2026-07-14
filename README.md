@@ -77,6 +77,7 @@ Uninstall with `sudo ./scripts/uninstall.sh` — fans revert to system control.
 | Tool | What it does |
 |---|---|
 | `get_thermal_status` | Per-sensor die temperatures (CPU/GPU/memory), fan RPM/mode/range, power draw (W), current control state and remaining TTL. |
+| `get_heat_sources` | Diagnose *why* the machine is hot: temperature summary plus the top CPU-consuming processes (with cumulative CPU time vs uptime, so runaways stand out). Breaks down what macOS's battery menu lumps together as "Terminal". |
 | `set_fan_speed` | Manual mode at `rpm` or `percent` (of each fan's min→max range), optionally per-`fan`, with `ttl_seconds` (default 900). |
 | `boost_fans` | All fans to 100% for `ttl_seconds` (default 600). Pre-cooling shortcut. |
 | `set_fan_auto` | Release manual control back to macOS immediately. |

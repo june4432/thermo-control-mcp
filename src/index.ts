@@ -8,6 +8,8 @@
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { z } from "zod";
 import {
   daemonRequest,
@@ -15,9 +17,11 @@ import {
   DaemonUnavailableError,
 } from "./daemon-client.js";
 
+const execFileAsync = promisify(execFile);
+
 const server = new McpServer({
   name: "thermo-control",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 type ToolResult = {
@@ -57,6 +61,72 @@ server.registerTool(
           return err(fallbackError);
         }
       }
+      return err(error);
+    }
+  }
+);
+
+server.registerTool(
+  "get_heat_sources",
+  {
+    title: "Find heat sources",
+    description:
+      "Diagnose WHY the machine is hot: returns the current temperature " +
+      "summary alongside the top CPU-consuming processes (pid, %CPU, memory, " +
+      "cumulative CPU time, uptime, command). A process whose cumulative CPU " +
+      "time is large relative to its uptime has been burning cores " +
+      "continuously — a typical runaway. macOS's battery menu attributes all " +
+      "terminal-spawned work to 'Terminal'; this breaks it down to the " +
+      "actual process. %CPU is a recent average, so freshly started spikes " +
+      "may need a second call a few seconds later to confirm.",
+    inputSchema: {
+      limit: z
+        .number()
+        .int()
+        .min(3)
+        .max(30)
+        .optional()
+        .describe("How many top processes to return (default 10)"),
+    },
+  },
+  async ({ limit }) => {
+    const count = limit ?? 10;
+    try {
+      const { stdout } = await execFileAsync(
+        "ps",
+        ["-Aro", "pid=,pcpu=,pmem=,cputime=,etime=,args="],
+        { timeout: 10_000, maxBuffer: 4 * 1024 * 1024 }
+      );
+      const processes = stdout
+        .split("\n")
+        .filter((line) => line.trim())
+        .slice(0, count)
+        .map((line) => {
+          const match = line
+            .trim()
+            .match(/^(\d+)\s+([\d.]+)\s+([\d.]+)\s+(\S+)\s+(\S+)\s+(.*)$/);
+          if (!match) return null;
+          return {
+            pid: Number(match[1]),
+            cpu_percent: Number(match[2]),
+            mem_percent: Number(match[3]),
+            cpu_time: match[4],
+            uptime: match[5],
+            command: match[6].slice(0, 160),
+          };
+        })
+        .filter(Boolean);
+
+      let temperature: unknown = null;
+      try {
+        const status = await daemonRequest({ cmd: "status" });
+        temperature = status.temperature ?? null;
+      } catch {
+        // Heat-source listing is still useful without the daemon.
+      }
+
+      return ok({ ok: true, temperature, top_processes: processes });
+    } catch (error) {
       return err(error);
     }
   }

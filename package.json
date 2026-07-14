@@ -1,6 +1,6 @@
 {
   "name": "thermo-control-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server that lets Claude Code / LLMs monitor Mac thermals and control fan speed safely (Apple Silicon M1-M5)",
   "license": "MIT",
   "author": "Youngjun Lee",
