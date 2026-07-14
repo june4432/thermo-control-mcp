@@ -1,0 +1,43 @@
+{
+  "name": "thermo-control-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets Claude Code / LLMs monitor Mac thermals and control fan speed safely (Apple Silicon M1-M5)",
+  "license": "MIT",
+  "author": "Youngjun Lee",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/june4432/thermo-control-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "macos",
+    "fan-control",
+    "smc",
+    "apple-silicon",
+    "thermal",
+    "claude"
+  ],
+  "type": "module",
+  "bin": {
+    "thermo-control-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.6.0"
+  }
+}
