@@ -1,5 +1,6 @@
 node_modules/
 dist/
 daemon/.build/
+demo/out/
 *.log
 .DS_Store

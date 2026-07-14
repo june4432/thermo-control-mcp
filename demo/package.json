@@ -1,0 +1,20 @@
+{
+  "name": "thermo-control-mcp-demo",
+  "private": true,
+  "description": "Remotion composition that renders the README demo GIF",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render:gif": "remotion render src/index.ts Demo ../assets/demo.gif --codec=gif --every-nth-frame=2",
+    "render:mp4": "remotion render src/index.ts Demo out/demo.mp4 --codec=h264"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "typescript": "^5.6.0"
+  }
+}

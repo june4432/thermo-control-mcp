@@ -2,6 +2,10 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets Claude Code (or any MCP client) monitor your Mac's thermals and control fan speed — with a root daemon that enforces safety limits no matter what the LLM asks for.
 
+![demo](assets/demo.gif)
+
+*A true story: the battery menu blamed "Terminal", Claude found a runaway language server, boosted the fans, and handed control back. (Rendered with [Remotion](https://remotion.dev) — source in [`demo/`](demo/).)*
+
 ```
 You: "I'm about to run a 20-minute Rust build. Keep the machine cool."
 Claude: [get_thermal_status] → CPU 58°C, fans on system control
