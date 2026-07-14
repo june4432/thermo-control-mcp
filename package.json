@@ -8,6 +8,10 @@
     "type": "git",
     "url": "git+https://github.com/june4432/thermo-control-mcp.git"
   },
+  "homepage": "https://github.com/june4432/thermo-control-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/june4432/thermo-control-mcp/issues"
+  },
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -30,7 +34,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepare": "tsc"
+    "prepare": "tsc",
+    "prepublishOnly": "tsc"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

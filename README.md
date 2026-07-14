@@ -54,6 +54,8 @@ The safety policy lives in the root daemon, **not** in the MCP layer the LLM tal
 
 ## Install
 
+There are two components: the **MCP server** (npm) and the **thermod daemon** (built from this repo — it's a root LaunchDaemon, so it intentionally never ships as a prebuilt binary; you build what you run).
+
 ```bash
 git clone https://github.com/june4432/thermo-control-mcp.git
 cd thermo-control-mcp
@@ -66,6 +68,13 @@ sudo ./scripts/install.sh
 
 # 3. Register with Claude Code
 claude mcp add thermo-control -- node "$(pwd)/dist/index.js"
+```
+
+If you prefer the MCP server from npm (still needs step 2 above for fan control):
+
+```bash
+npm install -g thermo-control-mcp
+claude mcp add thermo-control -- thermo-control-mcp
 ```
 
 Without step 2, `get_thermal_status` still works (SMC reads are unprivileged); the control tools return an explanatory error.
