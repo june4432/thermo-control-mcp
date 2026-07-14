@@ -105,7 +105,7 @@ Credit where due: the unlock mechanism and much of the protocol behavior were do
 
 | Hardware | Status |
 |---|---|
-| M4 Pro (`Mac16,8`) | Tested — developed on this machine |
+| M4 Pro (`Mac16,8`) | **Verified end-to-end** — sensors, manual fan control (2.3k→5.6k RPM), TTL/auto revert, via both the socket and MCP tools |
 | M1 / M2 / M3 / M5 | Implemented per documented behavior, untested — reports welcome |
 | Intel | `fpe2` format implemented, untested |
 | MacBook Air | No fans — status works, control does not apply |
