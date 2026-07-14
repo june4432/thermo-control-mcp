@@ -195,7 +195,7 @@ struct TemperatureReading {
 
 final class Sensors {
     private let smc: SMCConnection
-    /// Keys that answered plausibly at least once; probed on first read.
+    /// Keys that answered plausibly at least once; discovered on first read.
     private var activeKeys: [SensorKey]?
     private let catalog: [SensorKey]
 
@@ -208,8 +208,43 @@ final class Sensors {
         celsius > 1.0 && celsius < 130.0
     }
 
+    /// Classify an unknown temperature key by its community-documented prefix.
+    /// Die sensors (cpu/gpu) feed the thermal failsafe, so unknown keys default
+    /// to `system` rather than risking a false failsafe trigger.
+    private static func classify(_ key: String) -> SensorGroup {
+        switch key.prefix(2) {
+        case "Tp", "Te", "Tf", "TC", "Tc": return .cpu
+        case "Tg", "TG": return .gpu
+        case "Tm", "TM": return .memory
+        default: return .system
+        }
+    }
+
+    /// Enumerate every SMC key starting with "T" that decodes as a plausible
+    /// temperature. Covers all chip variants (base/Pro/Max/Ultra) and future
+    /// generations without a curated catalog; the catalog contributes friendly
+    /// names and group labels where known.
+    private func discover() -> [SensorKey] {
+        let known = Dictionary(catalog.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+        var result: [SensorKey] = []
+        var seen = Set<String>()
+        for key in smc.enumerateKeys() where key.hasPrefix("T") && !seen.contains(key) {
+            seen.insert(key)
+            guard let info = try? smc.keyInfo(key),
+                  SMCConnection.numericTypes.contains(info.dataType)
+            else { continue }
+            if let sensor = known[key] {
+                result.append(sensor)
+            } else {
+                result.append(SensorKey(key: key, name: key, group: Self.classify(key)))
+            }
+        }
+        // Enumeration unavailable (shouldn't happen) — fall back to the catalog.
+        return result.isEmpty ? catalog : result
+    }
+
     func readTemperatures() -> [TemperatureReading] {
-        let keys = activeKeys ?? catalog
+        let keys = activeKeys ?? discover()
         var readings: [TemperatureReading] = []
         var alive: [SensorKey] = []
         for sensor in keys {

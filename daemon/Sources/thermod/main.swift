@@ -10,7 +10,7 @@
 
 import Foundation
 
-let thermodVersion = "0.1.0"
+let thermodVersion = "0.2.0"
 
 func runDaemon() {
     let daemon: Daemon

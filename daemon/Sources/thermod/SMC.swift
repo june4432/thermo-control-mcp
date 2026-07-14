@@ -179,6 +179,11 @@ final class SMCConnection {
     // MARK: Read / write
 
     func readBytes(_ key: String) throws -> (bytes: [UInt8], size: UInt32) {
+        let (bytes, info) = try readTyped(key)
+        return (bytes, info.dataSize)
+    }
+
+    func readTyped(_ key: String) throws -> (bytes: [UInt8], info: KeyInfo) {
         let info = try keyInfo(key)
         var input = SMCParamStruct()
         input.key = try fourCharCode(key)
@@ -187,7 +192,7 @@ final class SMCConnection {
         let output = try call(input)
         try checkResult(output.result, key: key)
         let bytes = withUnsafeBytes(of: output.bytes) { Array($0.prefix(Int(info.dataSize))) }
-        return (bytes, info.dataSize)
+        return (bytes, info)
     }
 
     func writeBytes(_ key: String, _ bytes: [UInt8]) throws {
@@ -203,18 +208,66 @@ final class SMCConnection {
 
     // MARK: Typed helpers
 
-    /// Read a numeric key as Float. Handles Apple Silicon `flt` (4-byte native-endian
-    /// IEEE 754) and legacy Intel `fpe2` (2-byte big-endian 14.2 fixed point).
+    /// Read a numeric key as Float, decoding by the key's declared data type:
+    ///   flt  — 4-byte native-endian IEEE 754 (Apple Silicon)
+    ///   fpe2 — 2-byte big-endian unsigned 14.2 fixed point (Intel fan RPM)
+    ///   sp78 — 2-byte big-endian signed 7.8 fixed point (Intel temperatures)
+    ///   ui8/ui16/ui32 — big-endian unsigned integers
     func readFloat(_ key: String) throws -> Float {
-        let (bytes, size) = try readBytes(key)
-        if size == 4, bytes.count >= 4 {
+        let (bytes, info) = try readTyped(key)
+        switch info.dataType {
+        case "flt ":
+            guard bytes.count >= 4 else { throw SMCError.firmware(key, .spuriousData) }
             return bytes.withUnsafeBytes { $0.loadUnaligned(as: Float.self) }
+        case "fpe2":
+            guard bytes.count >= 2 else { throw SMCError.firmware(key, .spuriousData) }
+            return Float(UInt16(bytes[0]) << 8 | UInt16(bytes[1])) / 4.0
+        case "sp78":
+            guard bytes.count >= 2 else { throw SMCError.firmware(key, .spuriousData) }
+            let raw = Int16(bitPattern: UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
+            return Float(raw) / 256.0
+        case "ui8 ":
+            guard let first = bytes.first else { throw SMCError.firmware(key, .spuriousData) }
+            return Float(first)
+        case "ui16":
+            guard bytes.count >= 2 else { throw SMCError.firmware(key, .spuriousData) }
+            return Float(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
+        case "ui32":
+            guard bytes.count >= 4 else { throw SMCError.firmware(key, .spuriousData) }
+            let raw = bytes.prefix(4).reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
+            return Float(raw)
+        default:
+            // Unknown type: fall back to size-based decoding.
+            if bytes.count >= 4 {
+                return bytes.withUnsafeBytes { $0.loadUnaligned(as: Float.self) }
+            }
+            if bytes.count >= 2 {
+                return Float(UInt16(bytes[0]) << 8 | UInt16(bytes[1])) / 4.0
+            }
+            throw SMCError.firmware(key, .spuriousData)
         }
-        if bytes.count >= 2 {
-            let raw = UInt16(bytes[0]) << 8 | UInt16(bytes[1])
-            return Float(raw) / 4.0
+    }
+
+    /// Numeric data types readFloat understands — used to filter discovered keys.
+    static let numericTypes: Set<String> = ["flt ", "fpe2", "sp78", "ui8 ", "ui16", "ui32"]
+
+    /// Enumerate every key the SMC exposes, via the #KEY count and read-by-index.
+    func enumerateKeys() -> [String] {
+        guard let (countBytes, _) = try? readBytes("#KEY"), countBytes.count >= 4 else {
+            return []
         }
-        throw SMCError.firmware(key, .spuriousData)
+        let total = countBytes.prefix(4).reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
+
+        var keys: [String] = []
+        keys.reserveCapacity(Int(total))
+        for index in 0..<total {
+            var input = SMCParamStruct()
+            input.data8 = SMCCommand.readIndex.rawValue
+            input.data32 = index
+            guard let output = try? call(input), output.key != 0 else { continue }
+            keys.append(fourCharString(output.key))
+        }
+        return keys
     }
 
     func writeFloat(_ key: String, _ value: Float) throws {

@@ -193,7 +193,7 @@ final class Daemon {
             let clamped = min(max(requested, state.minRpm), state.maxRpm)
 
             let usedStrategy = try fans.enableManual(fan: index)
-            if usedStrategy == .ftstUnlock { strategy = .ftstUnlock }
+            if usedStrategy != .direct { strategy = usedStrategy }
             try fans.setTarget(fan: index, rpm: clamped)
             targets[index] = clamped
 
@@ -248,9 +248,16 @@ final class Daemon {
             return
         }
 
+        // Failsafe watches die sensors (cpu/gpu) only — system/battery sensors
+        // never legitimately reach this range and discovered unknown keys land
+        // in the system group, so they cannot false-trigger a revert.
         let readings = sensors.readTemperatures()
-        if let maxTemp = sensors.maxTemperature(readings), maxTemp >= Self.failsafeTempC {
-            log("FAILSAFE: max die temp \(maxTemp)°C >= \(Self.failsafeTempC)°C")
+        let dieMax = max(
+            sensors.maxTemperature(readings, group: .cpu) ?? 0,
+            sensors.maxTemperature(readings, group: .gpu) ?? 0
+        )
+        if dieMax >= Self.failsafeTempC {
+            log("FAILSAFE: max die temp \(dieMax)°C >= \(Self.failsafeTempC)°C")
             revertLocked(reason: "thermal-failsafe")
             return
         }

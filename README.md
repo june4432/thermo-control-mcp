@@ -97,7 +97,9 @@ Fan state lives in SMC keys (`FNum`, `F0Ac` actual RPM, `F0Tg` target, `F0Mn`/`F
 
 On M3/M4 machines there is an extra gate: `thermalmonitord` holds the fans in "system mode" (mode 3) and the firmware rejects manual-mode writes with error `0x82`. The daemon uses the community-documented unlock: try the direct write first (sufficient on M1/M2/M5 and Intel); on rejection, write the `Ftst` (force-test) diagnostic flag to `1`, which suppresses thermalmonitord's reclaim logic, then retry the mode write until it lands (typically 3–6 s). `Ftst` must stay set while manual control is held — one of the reasons this is a persistent daemon rather than a one-shot CLI. The firmware clears `Ftst` across sleep/wake; the daemon detects and re-asserts.
 
-Mode-key casing changed on M5 (`F0md`), and `Ftst` no longer exists there — both are probed at runtime.
+Mode-key casing changed on M5 (`F0md`), and `Ftst` no longer exists there — both are probed at runtime. Pre-T2 Intel Macs have no mode key at all; there the legacy `FS!` force-bitmask is used instead.
+
+Temperature sensors are **discovered dynamically**: the daemon enumerates the SMC's full key list (`#KEY` + read-by-index) and keeps every `T…` key that decodes as a plausible temperature — 291 sensors on an M4 Pro versus ~20 in a hand-curated list. This covers every chip variant (base/Pro/Max/Ultra) and future generations without per-model tables; curated catalogs only contribute friendly names where known. Values decode by declared SMC type (`flt`, `sp78`, `fpe2`, `ui8/16/32`), which also makes Intel's signed 7.8 fixed-point temperatures read correctly.
 
 Credit where due: the unlock mechanism and much of the protocol behavior were documented by [agoodkind/macos-smc-fan](https://github.com/agoodkind/macos-smc-fan) (via decompilation of `thermalmonitord` and `AppleSMC.kext`), with additional reference from [raminsharifi/MacFanControl](https://github.com/raminsharifi/MacFanControl), the [VirtualSMC SDK](https://github.com/acidanthera/VirtualSMC), and the [Asahi Linux SMC docs](https://asahilinux.org/docs/hw/soc/smc/). This project implements the protocol independently in Swift (MIT-licensed references only).
 
@@ -105,9 +107,10 @@ Credit where due: the unlock mechanism and much of the protocol behavior were do
 
 | Hardware | Status |
 |---|---|
-| M4 Pro (`Mac16,8`) | **Verified end-to-end** — sensors, manual fan control (2.3k→5.6k RPM), TTL/auto revert, via both the socket and MCP tools |
-| M1 / M2 / M3 / M5 | Implemented per documented behavior, untested — reports welcome |
-| Intel | `fpe2` format implemented, untested |
+| M4 Pro (`Mac16,8`) | **Verified end-to-end** — 291 sensors discovered, manual fan control (2.3k→6.2k RPM), TTL dead-man revert observed live, via both the socket and MCP tools |
+| M1 / M2 / M3 / M5 | Implemented per documented behavior (direct mode write on M1/M2/M5, `Ftst` unlock on M3/M4); sensors discovered dynamically per machine. Untested — reports welcome |
+| Intel (T2) | Direct mode write + `fpe2`/`sp78` decoding implemented, untested |
+| Intel (pre-T2) | Legacy `FS!` force-bitmask fallback implemented, untested |
 | MacBook Air | No fans — status works, control does not apply |
 
 ## Caveats
