@@ -1,5 +1,7 @@
 # thermo-control-mcp
 
+**English** | [한국어](README.ko.md)
+
 An [MCP](https://modelcontextprotocol.io) server that lets Claude Code (or any MCP client) monitor your Mac's thermals and control fan speed — with a root daemon that enforces safety limits no matter what the LLM asks for.
 
 ![demo](assets/demo.gif)
